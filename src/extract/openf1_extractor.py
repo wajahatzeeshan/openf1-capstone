@@ -4,11 +4,10 @@ from typing import Dict, Any, List
 
 BASE_URL = "https://api.openf1.org/v1"
 
-
 class OpenF1Extractor:
     def __init__(self, base_url: str = BASE_URL):
         self.base_url = base_url.rstrip("/")
-
+         
     def _get(self, endpoint: str, params: Dict[str, Any] | None = None) -> List[Dict[str, Any]]:
         """
         Internal helper to call the OpenF1 API.
