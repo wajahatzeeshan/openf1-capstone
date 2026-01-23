@@ -86,6 +86,12 @@ class OpenF1Extractor:
         if driver_number:
             params["driver_number"] = driver_number
 
-        data = self._get("car_data", params)
-        return pd.DataFrame(data)
-
+        try:
+            data = self._get("car_data", params)
+            return pd.DataFrame(data)
+        except RuntimeError as e:    
+            
+            if "422" in str(e):
+                print(f"  No telemetry for driver {driver_number} in session {session_key}. Skipping.")
+                return pd.DataFrame()
+            raise

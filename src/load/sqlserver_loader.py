@@ -77,11 +77,13 @@ class SQLServerLoader:
     # -----------------------------
     # Main write method
     # -----------------------------
+      
+    
     def write_df(self, df: pd.DataFrame, table_name: str, mode="append", batch_size=500):
         df = df.copy()
 
         # 1. Create table if needed
-        self._create_table_if_missing(table_name, df)
+        self._create_table_if_missing(df, table_name)
 
         # 2. If empty, stop here (no inserts, no truncate)
         if df.empty or len(df.columns) == 0:

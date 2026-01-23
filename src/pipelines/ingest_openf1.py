@@ -2,19 +2,29 @@ from src.extract.openf1_extractor import OpenF1Extractor
 from src.load.sqlserver_loader import SQLServerLoader
 
 
-def ingest_openf1(year = None):
+def ingest_openf1(year=None):
     extractor = OpenF1Extractor()
     loader = SQLServerLoader()
 
-     # Determine years to ingest
+    def is_session_loaded(self, session_key):
+        query = "SELECT 1 FROM bronze_ingestion_log WHERE session_key = ?"
+        self.cursor.execute(query, (session_key,))
+        return self.cursor.fetchone() is not None
+
+    def mark_session_loaded(self, session_key):
+        query = "INSERT INTO bronze_ingestion_log (session_key) VALUES (?)"
+        self.cursor.execute(query, (session_key,))
+        self.conn.commit()
+
+    # Determine years to ingest
     if year is None:
         all_sessions = extractor.get_sessions()
-        
+
         if all_sessions.empty:
             raise RuntimeError("No sessions found in OpenF1 API; cannot determine latest year.")
-        
-        start = int(all_sessions["year"].min()) # oldest year
-        end = int(all_sessions["year"].max())   # most recent year
+
+        start = int(all_sessions["year"].min())   # oldest year
+        end = int(all_sessions["year"].max())     # newest year
         year = list(range(start, end + 1))
 
     elif isinstance(year, int):
@@ -24,7 +34,6 @@ def ingest_openf1(year = None):
         start, end = year
         year = list(range(start, end + 1))
 
-    
     print(f"Starting OpenF1 ingestion for {year}")
 
     # -------------------------
@@ -41,45 +50,51 @@ def ingest_openf1(year = None):
 
         session_keys = sessions["session_key"].unique()
 
-    # -------------------------
-    # Loop through each session
-    # -------------------------
-    for session_key in session_keys:
-        print(f"\nProcessing session {session_key}")
+        # -------------------------
+        # Loop through each session
+        # -------------------------
+        for session_key in session_keys:
+            
+            if loader.is_session_loaded(session_key):
+                print(f"Session {session_key} already ingested. Skipping.")
+                continue
+            
+            print(f"\nProcessing session {session_key}")
 
-        # Drivers
-        print("  Extracting drivers...")
-        drivers = extractor.get_drivers(session_key)
-        loader.write_df(drivers, "bronze_drivers")
+            # Drivers
+            print("  Extracting drivers...")
+            drivers = extractor.get_drivers(session_key)
+            loader.write_df(drivers, "bronze_drivers")
 
-        # Laps
-        print("  Extracting laps...")
-        laps = extractor.get_laps(session_key)
-        loader.write_df(laps, "bronze_laps")
+            # Laps
+            print("  Extracting laps...")
+            laps = extractor.get_laps(session_key)
+            loader.write_df(laps, "bronze_laps")
 
-        # Pit stops
-        print("  Extracting pit stops...")
-        pit = extractor.get_pit_stops(session_key)
-        loader.write_df(pit, "bronze_pit_stops")
+            # Pit stops
+            print("  Extracting pit stops...")
+            pit = extractor.get_pit_stops(session_key)
+            loader.write_df(pit, "bronze_pit_stops")
 
-        # Weather
-        print("  Extracting weather...")
-        weather = extractor.get_weather(session_key)
-        loader.write_df(weather, "bronze_weather")
+            # Weather
+            print("  Extracting weather...")
+            weather = extractor.get_weather(session_key)
+            loader.write_df(weather, "bronze_weather")
 
-        # Positions
-        print("  Extracting positions...")
-        positions = extractor.get_positions(session_key)
-        loader.write_df(positions, "bronze_positions")
+            # Positions
+            print("  Extracting positions...")
+            positions = extractor.get_positions(session_key)
+            loader.write_df(positions, "bronze_positions")
 
-        # Telemetry (car data)
-        print("  Extracting car telemetry...")
-        # Optional: loop drivers to reduce payload size
-        if not drivers.empty and "driver_number" in drivers.columns:
-            for driver_number in drivers["driver_number"].unique():
-                car_data = extractor.get_car_data(session_key, driver_number)
-                loader.write_df(car_data, "bronze_car_data")
+            # Telemetry (car data)
+            print("  Extracting car telemetry...")
+            if not drivers.empty and "driver_number" in drivers.columns:
+                for driver_number in drivers["driver_number"].unique():
+                    car_data = extractor.get_car_data(session_key, driver_number)
+                    loader.write_df(car_data, "bronze_car_data")
 
+    # Mark session as completed
+    loader.mark_session_loaded(session_key)
     print("\nIngestion complete.")
     loader.close()
 
