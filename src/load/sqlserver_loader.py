@@ -15,6 +15,15 @@ class SQLServerLoader:
         )
         self.cursor = self.conn.cursor()
 
+    def is_session_loaded(self, session_key):
+        query = "SELECT 1 FROM bronze_ingestion_log WHERE session_key = ?"
+        self.cursor.execute(query, (session_key,))
+        return self.cursor.fetchone() is not None
+
+    def mark_session_loaded(self, session_key):
+        query = "INSERT INTO bronze_ingestion_log (session_key) VALUES (?)"
+        self.cursor.execute(query, (session_key,))
+        self.conn.commit()
     # -----------------------------
     # Value cleaning
     # -----------------------------

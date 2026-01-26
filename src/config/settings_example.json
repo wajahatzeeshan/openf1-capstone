@@ -1,0 +1,8 @@
+{
+  "sql_server": {
+    "driver": "ODBC Driver 17 for SQL Server",
+    "server": "WZNITRO\\WZDEVMSSQLSERVER",
+    "database": "OpenF1",
+    "trusted_connection": true
+  }
+}

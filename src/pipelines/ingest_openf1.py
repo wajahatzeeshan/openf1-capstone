@@ -6,16 +6,6 @@ def ingest_openf1(year=None):
     extractor = OpenF1Extractor()
     loader = SQLServerLoader()
 
-    def is_session_loaded(self, session_key):
-        query = "SELECT 1 FROM bronze_ingestion_log WHERE session_key = ?"
-        self.cursor.execute(query, (session_key,))
-        return self.cursor.fetchone() is not None
-
-    def mark_session_loaded(self, session_key):
-        query = "INSERT INTO bronze_ingestion_log (session_key) VALUES (?)"
-        self.cursor.execute(query, (session_key,))
-        self.conn.commit()
-
     # Determine years to ingest
     if year is None:
         all_sessions = extractor.get_sessions()
@@ -54,6 +44,7 @@ def ingest_openf1(year=None):
         # Loop through each session
         # -------------------------
         for session_key in session_keys:
+            session_key = int(session_key)
             
             if loader.is_session_loaded(session_key):
                 print(f"Session {session_key} already ingested. Skipping.")
