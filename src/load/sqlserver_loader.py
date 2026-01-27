@@ -14,16 +14,29 @@ class SQLServerLoader:
             f"Trusted_Connection=yes;"
         )
         self.cursor = self.conn.cursor()
-
+        self.cursor.fast_executemany = True
+    
+    def _validate_table_name(self, table_name):
+        safe = table_name.replace("_", "")
+        if not safe.isalnum():
+            raise ValueError(f"Unsafe table name: {table_name}")
+        
+    # -----------------------------
+    # Ingestion log methods
+    
     def is_session_loaded(self, session_key):
         query = "SELECT 1 FROM bronze_ingestion_log WHERE session_key = ?"
         self.cursor.execute(query, (session_key,))
         return self.cursor.fetchone() is not None
 
     def mark_session_loaded(self, session_key):
-        query = "INSERT INTO bronze_ingestion_log (session_key) VALUES (?)"
-        self.cursor.execute(query, (session_key,))
-        self.conn.commit()
+        try:
+            query = "INSERT INTO bronze_ingestion_log (session_key) VALUES (?)"
+            self.cursor.execute(query, (session_key,))
+            self.conn.commit()
+        except Exception as e: 
+            print(f"Warning: Could not mark session {session_key} as loaded: {e}")
+            
     # -----------------------------
     # Value cleaning
     # -----------------------------
@@ -52,7 +65,7 @@ class SQLServerLoader:
             return bool(value)
 
         return value
-
+      
     # -----------------------------
     # Table creation
     # -----------------------------
@@ -90,6 +103,9 @@ class SQLServerLoader:
     
     def write_df(self, df: pd.DataFrame, table_name: str, mode="append", batch_size=500):
         df = df.copy()
+        
+        # Validate table name
+        self._validate_table_name(table_name)
 
         # 1. Create table if needed
         self._create_table_if_missing(df, table_name)

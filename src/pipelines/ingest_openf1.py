@@ -85,7 +85,9 @@ def ingest_openf1(year=None):
                     loader.write_df(car_data, "bronze_car_data")
 
     # Mark session as completed
-    loader.mark_session_loaded(session_key)
+            loader.mark_session_loaded(session_key)
+            print(f"Session {session_key} marked as ingested.")
+        
     print("\nIngestion complete.")
     loader.close()
 
